@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { technologies, Technology } from "@/data/technologies";
 
 interface Node3D {
   tech: Technology;
-  x: number;
-  y: number;
-  z: number;
+  nx: number;
+  ny: number;
+  nz: number;
   baseRadius: number;
 }
 
@@ -36,29 +36,28 @@ export default function TechOrbit({
   const rotationRef = useRef({ x: 0.2, y: 0.4 });
   const velocityRef = useRef({ x: 0.002, y: 0.004 });
   const dragStartRef = useRef({ x: 0, y: 0 });
-  const lastMouseRef = useRef({ x: 0, y: 0 });
+  const lastMouseRef = useRef({ x: -1000, y: -1000 });
   const hoveredIndexRef = useRef<number | null>(null);
 
-  // Distribute nodes evenly on a sphere using Fibonacci sphere algorithm
-  const nodes = useMemo<Node3D[]>(() => {
+  // Distribute normalized unit points evenly on a sphere using Fibonacci sphere algorithm
+  const unitNodes = useMemo<Node3D[]>(() => {
     const total = technologies.length;
-    const radius = 220; // 3D sphere radius in pixels
-    const phi = Math.PI * (Math.sqrt(5) - 1); // Golden angle ~ 2.39996323
+    const phi = Math.PI * (Math.sqrt(5) - 1); // Golden angle
 
     return technologies.map((tech, i) => {
-      const y = 1 - (i / (total - 1)) * 2; // y goes from 1 to -1
-      const radiusAtY = Math.sqrt(1 - y * y); // radius at y
-      const theta = phi * i; // golden angle increment
+      const y = 1 - (i / (total - 1)) * 2; // y: 1 to -1
+      const radiusAtY = Math.sqrt(Math.max(0, 1 - y * y));
+      const theta = phi * i;
 
       const x = Math.cos(theta) * radiusAtY;
       const z = Math.sin(theta) * radiusAtY;
 
       return {
         tech,
-        x: x * radius,
-        y: y * radius,
-        z: z * radius,
-        baseRadius: tech.category === "ai" ? 6.5 : 5.5,
+        nx: x,
+        ny: y,
+        nz: z,
+        baseRadius: tech.category === "ai" ? 6 : 5,
       };
     });
   }, []);
@@ -69,6 +68,14 @@ export default function TechOrbit({
     dragStartRef.current = { x: e.clientX, y: e.clientY };
     velocityRef.current = { x: 0, y: 0 };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      lastMouseRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -85,12 +92,12 @@ export default function TechOrbit({
       const deltaY = e.clientY - dragStartRef.current.y;
       dragStartRef.current = { x: e.clientX, y: e.clientY };
 
-      rotationRef.current.y += deltaX * 0.007;
-      rotationRef.current.x -= deltaY * 0.007;
+      rotationRef.current.y += deltaX * 0.006;
+      rotationRef.current.x -= deltaY * 0.006;
 
       velocityRef.current = {
-        x: -deltaY * 0.002,
-        y: deltaX * 0.002,
+        x: -deltaY * 0.0015,
+        y: deltaX * 0.0015,
       };
     }
   };
@@ -100,7 +107,7 @@ export default function TechOrbit({
     try {
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {
-      // Ignore if not captured
+      // Ignore if pointer was not captured
     }
   };
 
@@ -120,7 +127,7 @@ export default function TechOrbit({
     if (!ctx) return;
 
     let animationFrameId: number;
-    const fov = 480;
+    const fov = 440;
 
     const render = () => {
       const width = canvas.clientWidth;
@@ -138,6 +145,9 @@ export default function TechOrbit({
 
       const cx = width / 2;
       const cy = height / 2;
+
+      // Dynamically scale sphere radius to fit mobile vs desktop
+      const sphereRadius = Math.min(210, Math.max(120, Math.min(width, height) * 0.38));
 
       // Apply inert velocity
       if (!isDragging) {
@@ -161,21 +171,18 @@ export default function TechOrbit({
       ctx.lineWidth = 1;
       const drawOrbitRing = (radius: number, tiltX: number, tiltY: number, color: string, alpha: number) => {
         ctx.beginPath();
-        const steps = 64;
+        const steps = 48;
         let first = true;
         for (let a = 0; a <= steps; a++) {
           const angle = (a / steps) * Math.PI * 2;
-          // Unrotated ring in XZ plane
           const rx = Math.cos(angle) * radius;
           const ry = 0;
           const rz = Math.sin(angle) * radius;
 
-          // Apply static tilt then current camera rotation
           const tx = rx;
           const ty = ry * Math.cos(tiltX) - rz * Math.sin(tiltX);
           const tz = ry * Math.sin(tiltX) + rz * Math.cos(tiltX);
 
-          // Rotate by global rotY & rotX
           const x1 = tx * cosY + tz * sinY;
           const z1 = -tx * sinY + tz * cosY;
           const y2 = ty * cosX - z1 * sinX;
@@ -198,45 +205,51 @@ export default function TechOrbit({
         ctx.globalAlpha = 1;
       };
 
-      // Draw 3 atmospheric orbital rings
-      drawOrbitRing(160, 0.4, 0, "#4A7FA7", 0.18);
-      drawOrbitRing(220, -0.6, 0.3, "#B3CFE5", 0.14);
-      drawOrbitRing(270, 0.9, -0.4, "#1A3D63", 0.22);
+      // Draw 3 atmospheric orbital rings dynamically sized
+      drawOrbitRing(sphereRadius * 0.75, 0.4, 0, "#4A7FA7", 0.18);
+      drawOrbitRing(sphereRadius * 1.0, -0.6, 0.3, "#B3CFE5", 0.14);
+      drawOrbitRing(sphereRadius * 1.25, 0.9, -0.4, "#1A3D63", 0.2);
 
       // Central glowing orb
-      const coreZ = 0;
-      const coreScale = fov / (fov + coreZ + 350);
-      const coreGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 38 * coreScale);
-      coreGrad.addColorStop(0, "rgba(179, 207, 229, 0.8)");
-      coreGrad.addColorStop(0.3, "rgba(74, 127, 167, 0.45)");
-      coreGrad.addColorStop(0.7, "rgba(26, 61, 99, 0.2)");
+      const coreScale = fov / (fov + 350);
+      const coreGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 32 * coreScale);
+      coreGrad.addColorStop(0, "rgba(179, 207, 229, 0.85)");
+      coreGrad.addColorStop(0.35, "rgba(74, 127, 167, 0.4)");
+      coreGrad.addColorStop(0.7, "rgba(26, 61, 99, 0.15)");
       coreGrad.addColorStop(1, "rgba(10, 25, 49, 0)");
       ctx.fillStyle = coreGrad;
       ctx.beginPath();
-      ctx.arc(cx, cy, 38 * coreScale, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 32 * coreScale, 0, Math.PI * 2);
       ctx.fill();
 
       // Project each node to 2D
-      const projected = nodes.map((node, index) => {
+      const projected = unitNodes.map((node, index) => {
+        const x0 = node.nx * sphereRadius;
+        const y0 = node.ny * sphereRadius;
+        const z0 = node.nz * sphereRadius;
+
         // Rotate around Y
-        const x1 = node.x * cosY + node.z * sinY;
-        const z1 = -node.x * sinY + node.z * cosY;
+        const x1 = x0 * cosY + z0 * sinY;
+        const z1 = -x0 * sinY + z0 * cosY;
 
         // Rotate around X
-        const y2 = node.y * cosX - z1 * sinX;
-        const z2 = node.y * sinX + z1 * cosX;
+        const y2 = y0 * cosX - z1 * sinX;
+        const z2 = y0 * sinX + z1 * cosX;
 
-        // Perspective scale (z2: -250 to +250)
+        // Perspective scale
         const scale = fov / (fov + z2 + 300);
         const px = cx + x1 * scale;
         const py = cy + y2 * scale;
 
         // Depth factor between 0.25 (far) and 1.0 (close)
-        const depth = Math.max(0.2, Math.min(1.0, (z2 + 250) / 500));
+        const depth = Math.max(0.2, Math.min(1.0, (z2 + sphereRadius) / (sphereRadius * 2)));
 
         return {
           index,
           node,
+          x0,
+          y0,
+          z0,
           px,
           py,
           scale,
@@ -245,9 +258,9 @@ export default function TechOrbit({
         };
       });
 
-      // Find node closest to mouse
+      // Find node closest to pointer
       let closestIdx: number | null = null;
-      let minDistance = 28; // hit target radius in px
+      let minDistance = width < 480 ? 32 : 28;
 
       const mx = lastMouseRef.current.x;
       const my = lastMouseRef.current.y;
@@ -255,7 +268,6 @@ export default function TechOrbit({
       if (mx > 0 && my > 0) {
         projected.forEach((p) => {
           const dist = Math.hypot(p.px - mx, p.py - my);
-          // Prefer nodes closer to camera
           const adjustedDist = dist - p.depth * 8;
           if (adjustedDist < minDistance) {
             minDistance = adjustedDist;
@@ -267,7 +279,7 @@ export default function TechOrbit({
       if (closestIdx !== hoveredIndexRef.current) {
         hoveredIndexRef.current = closestIdx;
         if (closestIdx !== null) {
-          const hovered = nodes[closestIdx].tech;
+          const hovered = unitNodes[closestIdx].tech;
           setHoveredNode(hovered);
           onHoverTech?.(hovered);
           const p = projected[closestIdx];
@@ -280,7 +292,7 @@ export default function TechOrbit({
       }
 
       // 1. Draw Constellation connecting lines
-      // Draw lines between nodes in the same category or neighboring
+      const maxConnectDist = sphereRadius * 0.9;
       for (let i = 0; i < projected.length; i++) {
         const p1 = projected[i];
         for (let j = i + 1; j < projected.length; j++) {
@@ -289,21 +301,20 @@ export default function TechOrbit({
           const isSameCategory = p1.node.tech.category === p2.node.tech.category;
           const isHoveredCategory =
             hoveredIndexRef.current !== null &&
-            nodes[hoveredIndexRef.current].tech.category === p1.node.tech.category &&
+            unitNodes[hoveredIndexRef.current].tech.category === p1.node.tech.category &&
             isSameCategory;
 
           const isFilterActive =
             activeCategory &&
             (p1.node.tech.category === activeCategory || activeCategory === "all");
 
-          // Calculate 3D distance between original nodes
           const dist3D = Math.hypot(
-            p1.node.x - p2.node.x,
-            p1.node.y - p2.node.y,
-            p1.node.z - p2.node.z
+            p1.x0 - p2.x0,
+            p1.y0 - p2.y0,
+            p1.z0 - p2.z0
           );
 
-          if (dist3D < 190 && isSameCategory) {
+          if (dist3D < maxConnectDist && isSameCategory) {
             const avgDepth = (p1.depth + p2.depth) / 2;
             const categoryMeta = CATEGORY_COLORS[p1.node.tech.category];
 
@@ -313,12 +324,12 @@ export default function TechOrbit({
 
             if (isHoveredCategory || isFilterActive) {
               ctx.strokeStyle = categoryMeta.hex;
-              ctx.lineWidth = 1.8 * avgDepth;
-              ctx.globalAlpha = Math.min(1, avgDepth * 0.9 + 0.2);
+              ctx.lineWidth = 1.6 * avgDepth;
+              ctx.globalAlpha = Math.min(1, avgDepth * 0.85 + 0.2);
             } else {
               ctx.strokeStyle = "#4A7FA7";
-              ctx.lineWidth = 0.8 * avgDepth;
-              ctx.globalAlpha = avgDepth * 0.25;
+              ctx.lineWidth = 0.75 * avgDepth;
+              ctx.globalAlpha = avgDepth * 0.22;
             }
             ctx.stroke();
             ctx.globalAlpha = 1;
@@ -326,7 +337,7 @@ export default function TechOrbit({
         }
       }
 
-      // 2. Sort projected nodes by depth (painter's algorithm)
+      // 2. Sort projected nodes by depth
       projected.sort((a, b) => a.z2 - b.z2);
 
       // 3. Render each node and its label
@@ -335,67 +346,65 @@ export default function TechOrbit({
         const categoryMeta = CATEGORY_COLORS[p.node.tech.category];
         const isMatchingCategory =
           hoveredIndexRef.current !== null &&
-          nodes[hoveredIndexRef.current].tech.category === p.node.tech.category;
+          unitNodes[hoveredIndexRef.current].tech.category === p.node.tech.category;
 
         const isFiltered =
           activeCategory &&
           activeCategory !== "all" &&
           p.node.tech.category !== activeCategory;
 
-        const radius = (p.node.baseRadius * (isHovered ? 1.45 : 1)) * p.scale;
+        const radius = (p.node.baseRadius * (isHovered ? 1.4 : 1)) * p.scale;
         const opacity = isFiltered
           ? 0.2
           : isHovered
           ? 1.0
           : isMatchingCategory
           ? Math.min(1.0, p.depth + 0.3)
-          : Math.max(0.35, p.depth);
+          : Math.max(0.3, p.depth);
 
-        // Glowing outer halo for highlighted nodes
+        // Halo for highlighted nodes
         if (isHovered || isMatchingCategory) {
           ctx.beginPath();
-          ctx.arc(p.px, p.py, radius * 3.2, 0, Math.PI * 2);
+          ctx.arc(p.px, p.py, radius * 3, 0, Math.PI * 2);
           ctx.fillStyle = categoryMeta.glow;
           ctx.globalAlpha = isHovered ? 0.9 : 0.4;
           ctx.fill();
           ctx.globalAlpha = 1;
         }
 
-        // Main node sphere
+        // Main node circle
         ctx.beginPath();
         ctx.arc(p.px, p.py, radius, 0, Math.PI * 2);
         ctx.fillStyle = isHovered ? "#FFFFFF" : categoryMeta.hex;
         ctx.globalAlpha = opacity;
         ctx.fill();
 
-        // Node border
         ctx.lineWidth = isHovered ? 2 : 1;
         ctx.strokeStyle = isHovered ? categoryMeta.hex : "#0A1931";
         ctx.stroke();
 
         // Node text label
-        const fontSize = Math.max(10, Math.min(13, 11 * p.scale));
+        const fontSize = Math.max(9, Math.min(12, 10.5 * p.scale));
         ctx.font = `${isHovered ? "600" : "500"} ${fontSize}px Inter, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
 
-        const labelY = p.py + radius + 4;
+        const labelY = p.py + radius + 3;
         const text = p.node.tech.name;
 
-        // Subtle text backdrop for readability when closer
         if (p.depth > 0.45 || isHovered) {
           const textMetrics = ctx.measureText(text);
-          const bgWidth = textMetrics.width + 8;
-          const bgHeight = fontSize + 4;
+          const bgWidth = textMetrics.width + 6;
+          const bgHeight = fontSize + 3;
 
           ctx.fillStyle = "rgba(10, 25, 49, 0.75)";
           ctx.globalAlpha = opacity * 0.85;
           ctx.beginPath();
-          ctx.roundRect(p.px - bgWidth / 2, labelY - 2, bgWidth, bgHeight, 3);
+          ctx.roundRect(p.px - bgWidth / 2, labelY - 1, bgWidth, bgHeight, 3);
           ctx.fill();
 
           ctx.fillStyle = isHovered ? "#FFFFFF" : "#F6FAFD";
-          ctx.globalAlpha = isHovered ? 1.0 : Math.max(0.4, p.depth * 0.95);
+          ctx.globalAlpha = isHovered ? 1.0 : Math.max(0.4, p.depth * 0.9);
           ctx.fillText(text, p.px, labelY);
         }
 
@@ -411,14 +420,14 @@ export default function TechOrbit({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [nodes, isDragging, activeCategory, onHoverTech]);
+  }, [unitNodes, isDragging, activeCategory, onHoverTech]);
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-[520px] md:h-[600px] flex items-center justify-center select-none"
+      className="relative w-full h-[360px] sm:h-[460px] md:h-[540px] lg:h-[600px] flex items-center justify-center select-none"
     >
-      {/* Interactive Canvas */}
+      {/* Canvas */}
       <canvas
         ref={canvasRef}
         className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
@@ -429,22 +438,22 @@ export default function TechOrbit({
         onMouseLeave={handleMouseLeave}
       />
 
-      {/* Floating Info Tooltip when hovering over a node */}
+      {/* Responsive Info Tooltip when hovering over a node */}
       {hoveredNode && tooltipPos && (
         <div
-          className="absolute pointer-events-none z-30 transition-all duration-150 transform -translate-x-1/2 -translate-y-full mb-4"
+          className="absolute pointer-events-none z-30 transition-all duration-150 transform -translate-x-1/2 -translate-y-full mb-3"
           style={{
-            left: Math.max(140, Math.min((canvasRef.current?.clientWidth || 500) - 140, tooltipPos.x)),
-            top: Math.max(100, tooltipPos.y - 12),
+            left: Math.max(120, Math.min((canvasRef.current?.clientWidth || 360) - 120, tooltipPos.x)),
+            top: Math.max(70, tooltipPos.y - 10),
           }}
         >
-          <div className="bg-primary/95 backdrop-blur-md border border-accent/40 shadow-2xl p-4 rounded-xl w-64 text-left">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-sm font-bold text-offwhite tracking-wide">
+          <div className="bg-primary/95 backdrop-blur-md border border-accent/40 shadow-2xl p-3 sm:p-4 rounded-xl w-56 sm:w-64 text-left">
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <span className="text-xs sm:text-sm font-bold text-offwhite tracking-wide">
                 {hoveredNode.name}
               </span>
               <span
-                className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-full border"
+                className="text-[9px] sm:text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-full border"
                 style={{
                   color: CATEGORY_COLORS[hoveredNode.category].hex,
                   borderColor: `${CATEGORY_COLORS[hoveredNode.category].hex}55`,
@@ -454,21 +463,17 @@ export default function TechOrbit({
                 {CATEGORY_COLORS[hoveredNode.category].label}
               </span>
             </div>
-            <p className="text-xs text-offwhite/70 leading-relaxed font-sans">
+            <p className="text-[11px] sm:text-xs text-offwhite/70 leading-relaxed font-sans">
               {hoveredNode.description}
             </p>
-            <div className="mt-2.5 pt-2 border-t border-secondary/60 flex items-center gap-1.5 text-[10px] text-accent-light font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-              Connected in Architecture
-            </div>
           </div>
         </div>
       )}
 
       {/* Hint Badge */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-secondary/40 backdrop-blur-sm border border-secondary/60 text-[11px] font-mono text-offwhite/50 pointer-events-none flex items-center gap-2">
+      <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 sm:py-1.5 rounded-full bg-secondary/40 backdrop-blur-sm border border-secondary/60 text-[10px] sm:text-[11px] font-mono text-offwhite/60 pointer-events-none flex items-center gap-1.5 sm:gap-2 whitespace-nowrap">
         <span className="w-1.5 h-1.5 rounded-full bg-accent-light" />
-        Drag to rotate · Hover nodes to inspect
+        <span>Drag to rotate · Tap or hover nodes</span>
       </div>
     </div>
   );
