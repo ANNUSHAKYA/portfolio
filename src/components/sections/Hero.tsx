@@ -3,6 +3,8 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import WhatsAppIcon from "@/components/ui/WhatsAppIcon";
+import { WHATSAPP_URL } from "@/lib/contact";
 
 // Load 3D scene dynamically to avoid SSR issues
 const HeroScene = dynamic(() => import("../3d/HeroScene"), { ssr: false });
@@ -58,17 +60,26 @@ export default function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="flex flex-col sm:flex-row gap-3.5 sm:gap-4"
+            className="flex flex-col sm:flex-row flex-wrap gap-3.5 sm:gap-4"
           >
             <Link
               href="#contact"
               className="w-full sm:w-auto px-7 py-4 bg-offwhite text-primary text-xs sm:text-sm font-bold uppercase tracking-widest hover:bg-accent-light transition-all text-center rounded-sm hover:scale-105 active:scale-95 duration-150 shadow-lg shadow-black/30"
             >
-              Let's Work Together
+              Start a Project
             </Link>
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto px-6 py-4 bg-secondary/30 border border-secondary hover:border-accent-light/60 text-offwhite text-xs sm:text-sm font-bold uppercase tracking-widest hover:bg-secondary/60 backdrop-blur-sm transition-all text-center rounded-sm hover:scale-105 active:scale-95 duration-150 flex items-center justify-center gap-2.5"
+            >
+              <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
+              <span>Chat on WhatsApp</span>
+            </a>
             <Link
               href="#work"
-              className="w-full sm:w-auto px-7 py-4 bg-secondary/30 border border-secondary text-offwhite text-xs sm:text-sm font-bold uppercase tracking-widest hover:bg-secondary/60 backdrop-blur-sm transition-all text-center rounded-sm hover:scale-105 active:scale-95 duration-150"
+              className="w-full sm:w-auto px-6 py-4 border border-secondary/40 text-offwhite/70 hover:text-offwhite hover:border-secondary text-xs sm:text-sm font-bold uppercase tracking-widest backdrop-blur-sm transition-all text-center rounded-sm hover:scale-105 active:scale-95 duration-150"
             >
               View My Work
             </Link>

@@ -9,6 +9,7 @@ import WhyWorkWithMe from "@/components/sections/WhyWorkWithMe";
 import TechStack from "@/components/sections/TechStack";
 import Contact from "@/components/sections/Contact";
 import Footer from "@/components/sections/Footer";
+import FloatingWhatsApp from "@/components/ui/FloatingWhatsApp";
 
 export default function Home() {
   return (
@@ -24,6 +25,7 @@ export default function Home() {
       <TechStack />
       <Contact />
       <Footer />
+      <FloatingWhatsApp />
     </main>
   );
 }

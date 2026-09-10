@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import WhatsAppIcon from "@/components/ui/WhatsAppIcon";
+import { WHATSAPP_URL } from "@/lib/contact";
 
 const navLinks = [
   { name: "Home", href: "#home" },
@@ -57,7 +59,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center space-x-8">
+        <nav className="hidden md:flex items-center space-x-5 lg:space-x-8">
           {navLinks.map((link) => (
             <Link
               key={link.name}
@@ -67,6 +69,17 @@ export default function Navbar() {
               {link.name}
             </Link>
           ))}
+          <a
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3.5 py-2 bg-secondary/30 hover:bg-secondary/60 text-offwhite border border-secondary/70 rounded-sm text-xs font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95 duration-150"
+            aria-label="Chat on WhatsApp"
+          >
+            <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" />
+            <span className="hidden xl:inline">CHAT ON WHATSAPP</span>
+            <span className="xl:hidden">WHATSAPP</span>
+          </a>
           <Link
             href="#contact"
             className="px-5 py-2.5 bg-offwhite text-primary text-sm font-bold uppercase tracking-wider hover:bg-accent-light transition-colors rounded-sm hover:scale-105 active:scale-95 duration-150"
@@ -128,11 +141,22 @@ export default function Navbar() {
 
               <Link
                 href="#contact"
-                className="w-full py-4 bg-offwhite text-primary text-center text-sm font-bold uppercase tracking-widest rounded-sm mt-4 shadow-lg hover:bg-accent-light transition-all active:scale-[0.98]"
+                className="w-full py-3.5 bg-offwhite text-primary text-center text-sm font-bold uppercase tracking-widest rounded-sm mt-4 shadow-lg hover:bg-accent-light transition-all active:scale-[0.98]"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Start a Project
               </Link>
+
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 bg-secondary/40 border border-secondary/80 text-offwhite text-center text-xs font-bold uppercase tracking-widest rounded-sm shadow-md flex items-center justify-center gap-2 hover:bg-secondary/70 transition-all active:scale-[0.98]"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
+                <span>Chat on WhatsApp</span>
+              </a>
 
               {/* Mobile Social Links */}
               <div className="pt-4 flex items-center justify-center gap-6 text-offwhite/60 text-xs font-mono">
