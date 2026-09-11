@@ -411,7 +411,7 @@ export default function Contact() {
                           value={formState.name}
                           onChange={handleChange}
                           className={inputClass(fieldErrors.name)}
-                          placeholder="Jane Doe"
+                          placeholder="Your Name"
                         />
                         <FieldError message={fieldErrors.name} />
                       </div>
@@ -430,7 +430,7 @@ export default function Contact() {
                           value={formState.email}
                           onChange={handleChange}
                           className={inputClass(fieldErrors.email)}
-                          placeholder="jane@example.com"
+                          placeholder="youremail@gmail.com"
                         />
                         <FieldError message={fieldErrors.email} />
                       </div>
